@@ -1,4 +1,4 @@
-import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -24,4 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks_router, prefix="/api")
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
+# Serve frontend if folder exists
+if os.path.isdir("frontend"):
+    app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
