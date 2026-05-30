@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow AI — Дашборд</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    header { background: #1e293b; padding: 16px 32px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #334155; }
+    header h1 { font-size: 20px; font-weight: 700; color: #38bdf8; }
+    header span { font-size: 13px; color: #64748b; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .stat-card .value { font-size: 32px; font-weight: 700; color: #38bdf8; }
+    .stat-card .label { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .actions { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #38bdf8; color: #0f172a; }
+    .btn-secondary { background: #334155; color: #e2e8f0; }
+    .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+    .filter-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+    .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    .task-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; cursor: pointer; transition: border-color 0.15s; }
+    .task-card:hover { border-color: #38bdf8; }
+    .task-card.at_risk { border-color: #f59e0b; }
+    .task-card.overdue { border-color: #ef4444; }
+    .task-card.done { opacity: 0.6; }
+    .task-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .task-title { font-size: 15px; font-weight: 600; line-height: 1.3; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-high { background: #7f1d1d; color: #fca5a5; }
+    .badge-medium { background: #78350f; color: #fcd34d; }
+    .badge-low { background: #14532d; color: #86efac; }
+    .task-meta { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+    .progress-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+    .progress-fill { height: 100%; background: #38bdf8; border-radius: 3px; transition: width 0.3s; }
+    .task-footer { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b; }
+    .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .status-new { background: #1e3a5f; color: #7dd3fc; }
+    .status-in_progress { background: #1e3a2f; color: #86efac; }
+    .status-at_risk { background: #3d2a00; color: #fcd34d; }
+    .status-done { background: #1a2e1a; color: #4ade80; }
+    .status-overdue { background: #3d0f0f; color: #fca5a5; }
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1e293b; border-radius: 16px; padding: 32px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; border: 1px solid #334155; }
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #38bdf8; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; color: #e2e8f0; font-size: 14px; outline: none; transition: border-color 0.15s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #38bdf8; }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 60px 20px; color: #475569; }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .detail-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #334155; }
+    .detail-section h3 { font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; }
+    .ai-plan { background: #0f172a; border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #cbd5e1; }
+    .comment-input { margin-top: 12px; display: flex; gap: 8px; }
+    .comment-input input { flex: 1; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 14px 20px; font-size: 14px; z-index: 200; animation: fadeIn 0.2s; }
+    .toast.success { border-color: #22c55e; }
+    .toast.error { border-color: #ef4444; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>TaskFlow AI</h1>
+  <span>Дашборд руководителя</span>
+</header>
+
+<div class="container">
+  <div class="stats" id="stats">
+    <div class="stat-card"><div class="value" id="stat-total">—</div><div class="label">Всего задач</div></div>
+    <div class="stat-card"><div class="value" id="stat-progress" style="color:#86efac">—</div><div class="label">В работе</div></div>
+    <div class="stat-card"><div class="value" id="stat-risk" style="color:#fcd34d">—</div><div class="label">Под угрозой</div></div>
+    <div class="stat-card"><div class="value" id="stat-done" style="color:#4ade80">—</div><div class="label">Выполнено</div></div>
+    <div class="stat-card"><div class="value" id="stat-overdue" style="color:#fca5a5">—</div><div class="label">Просрочено</div></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="openCreateModal()">+ Создать задачу</button>
+    <button class="btn btn-secondary" onclick="loadTasks()">Обновить</button>
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="setFilter('all', this)">Все</button>
+      <button class="filter-btn" onclick="setFilter('new', this)">Новые</button>
+      <button class="filter-btn" onclick="setFilter('in_progress', this)">В работе</button>
+      <button class="filter-btn" onclick="setFilter('at_risk', this)">Риск</button>
+      <button class="filter-btn" onclick="setFilter('done', this)">Готово</button>
+    </div>
+  </div>
+
+  <div class="tasks-grid" id="tasks-grid">
+    <div class="empty"><div class="icon">📋</div>Загрузка...</div>
+  </div>
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal">
+    <h2>Новая задача</h2>
+    <div class="form-group">
+      <label>Название *</label>
+      <input type="text" id="f-title" placeholder="Краткое название задачи">
+    </div>
+    <div class="form-group">
+      <label>Описание *</label>
+      <textarea id="f-desc" placeholder="Подробное описание, контекст, ожидаемый результат"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Исполнитель (имя) *</label>
+        <input type="text" id="f-name" placeholder="Иван Петров">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="f-email" placeholder="ivan@company.com">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Telegram (chat_id или @username)</label>
+        <input type="text" id="f-tg" placeholder="@username или 123456789">
+      </div>
+      <div class="form-group">
+        <label>Приоритет</label>
+        <select id="f-priority">
+          <option value="medium">Средний</option>
+          <option value="high">Высокий</option>
+          <option value="low">Низкий</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Дедлайн *</label>
+      <input type="datetime-local" id="f-deadline">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('create-modal')">Отмена</button>
+      <button class="btn btn-primary" id="create-btn" onclick="createTask()">Создать + AI-анализ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <h2 id="detail-title">Задача</h2>
+    <div id="detail-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('detail-modal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let allTasks = [];
+let currentFilter = 'all';
+
+async function loadTasks() {
+  const [tasksResp, summResp] = await Promise.all([
+    fetch(`${API}/tasks/`),
+    fetch(`${API}/tasks/dashboard/summary`)
+  ]);
+  allTasks = await tasksResp.json();
+  const summary = await summResp.json();
+
+  document.getElementById('stat-total').textContent = summary.total;
+  document.getElementById('stat-progress').textContent = summary.by_status?.in_progress || 0;
+  document.getElementById('stat-risk').textContent = summary.by_status?.at_risk || 0;
+  document.getElementById('stat-done').textContent = summary.by_status?.done || 0;
+  document.getElementById('stat-overdue').textContent = summary.overdue?.length || 0;
+
+  renderTasks();
+}
+
+function renderTasks() {
+  const filtered = currentFilter === 'all' ? allTasks : allTasks.filter(t => t.status === currentFilter);
+  const grid = document.getElementById('tasks-grid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty"><div class="icon">📭</div>Задач нет</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(t => taskCard(t)).join('');
+}
+
+function taskCard(t) {
+  const prioLabel = {high: 'Высокий', medium: 'Средний', low: 'Низкий'}[t.priority] || t.priority;
+  const statusLabel = {new:'Новая',in_progress:'В работе',at_risk:'Риск',done:'Готово',overdue:'Просрочено'}[t.status] || t.status;
+  const dl = new Date(t.deadline).toLocaleDateString('ru-RU');
+  return `<div class="task-card ${t.status}" onclick="showDetail(${t.id})">
+    <div class="task-header">
+      <div class="task-title">${esc(t.title)}</div>
+      <span class="badge badge-${t.priority}">${prioLabel}</span>
+    </div>
+    <div class="task-meta">👤 ${esc(t.assignee_name)} · 📅 ${dl}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+    <div class="task-footer">
+      <span class="status-badge status-${t.status}">${statusLabel}</span>
+      <span>${t.progress}%</span>
+    </div>
+  </div>`;
+}
+
+async function showDetail(id) {
+  const resp = await fetch(`${API}/tasks/${id}`);
+  const t = await resp.json();
+  document.getElementById('detail-title').textContent = t.title;
+  const prioLabel = {high:'Высокий',medium:'Средний',low:'Низкий'}[t.priority] || t.priority;
+  const statusLabel = {new:'Новая',in_progress:'В работе',at_risk:'Риск',done:'Готово',overdue:'Просрочено'}[t.status] || t.status;
+  document.getElementById('detail-body').innerHTML = `
+    <p style="color:#94a3b8;font-size:13px;margin-bottom:12px">${esc(t.description)}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:12px">
+      <div>👤 <b>${esc(t.assignee_name)}</b></div>
+      <div>📧 ${esc(t.assignee_email)}</div>
+      <div>📅 ${new Date(t.deadline).toLocaleString('ru-RU')}</div>
+      <div>🏷️ ${prioLabel} · ${statusLabel}</div>
+      ${t.task_type ? `<div>🔖 ${esc(t.task_type)}</div>` : ''}
+    </div>
+    <div class="progress-bar" style="margin-bottom:8px"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px">Прогресс: ${t.progress}%</div>
+    ${t.ai_plan ? `<div class="detail-section"><h3>🤖 AI-план</h3><div class="ai-plan">${esc(t.ai_plan)}</div></div>` : ''}
+    <div class="detail-section">
+      <h3>💬 Комментарий руководителя</h3>
+      <div class="comment-input">
+        <input type="text" id="comment-text" placeholder="Ваш комментарий по задаче...">
+        <button class="btn btn-primary" style="padding:8px 14px" onclick="addComment(${t.id})">Отправить</button>
+      </div>
+    </div>`;
+  openModal('detail-modal');
+}
+
+async function addComment(taskId) {
+  const text = document.getElementById('comment-text').value.trim();
+  if (!text) return;
+  const resp = await fetch(`${API}/tasks/${taskId}/comments`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text})
+  });
+  if (resp.ok) {
+    const data = await resp.json();
+    toast('Комментарий отправлен. AI-рекомендации направлены исполнителю.', 'success');
+    document.getElementById('comment-text').value = '';
+    if (data.ai_recommendation) {
+      const section = document.querySelector('.detail-section:last-child');
+      const rec = document.createElement('div');
+      rec.className = 'ai-plan';
+      rec.style.marginTop = '12px';
+      rec.textContent = data.ai_recommendation;
+      section.appendChild(rec);
+    }
+  }
+}
+
+async function createTask() {
+  const title = document.getElementById('f-title').value.trim();
+  const description = document.getElementById('f-desc').value.trim();
+  const assignee_name = document.getElementById('f-name').value.trim();
+  const assignee_email = document.getElementById('f-email').value.trim();
+  const assignee_telegram = document.getElementById('f-tg').value.trim() || null;
+  const priority = document.getElementById('f-priority').value;
+  const deadline = document.getElementById('f-deadline').value;
+
+  if (!title || !description || !assignee_name || !assignee_email || !deadline) {
+    toast('Заполните все обязательные поля', 'error'); return;
+  }
+
+  const btn = document.getElementById('create-btn');
+  btn.innerHTML = '<span class="loading"></span> AI анализирует...';
+  btn.disabled = true;
+
+  const resp = await fetch(`${API}/tasks/`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({title, description, assignee_name, assignee_email, assignee_telegram, priority, deadline: new Date(deadline).toISOString()})
+  });
+
+  btn.innerHTML = 'Создать + AI-анализ'; btn.disabled = false;
+
+  if (resp.ok) {
+    closeModal('create-modal');
+    toast('Задача создана! AI-план сгенерирован, исполнитель уведомлён.', 'success');
+    loadTasks();
+  } else {
+    toast('Ошибка при создании задачи', 'error');
+  }
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function openCreateModal() { openModal('create-modal'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+let toastTimer;
+function toast(msg, type='success') {
+  clearTimeout(toastTimer);
+  let el = document.querySelector('.toast');
+  if (!el) { el = document.createElement('div'); document.body.appendChild(el); }
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  toastTimer = setTimeout(() => el.remove(), 4000);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+loadTasks();
+setInterval(loadTasks, 30000);
+</script>
+</body>
+</html>
