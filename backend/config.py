@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     base_url: str = "http://localhost:8000"
 
+    # SMTP для email-уведомлений
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
     class Config:
         env_file = str(ENV_FILE)
 

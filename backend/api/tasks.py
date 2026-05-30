@@ -51,10 +51,18 @@ async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(task)
 
-    # Notify assignee via Telegram
+    # Уведомление в Telegram
     if task.assignee_telegram:
         msg = notifier.build_task_notification(task)
         await notifier.send_telegram(task.assignee_telegram, msg)
+
+    # Уведомление на email
+    email_html = notifier.build_task_email_html(task)
+    await notifier.send_email(
+        to_email=task.assignee_email,
+        subject=f"📋 Новая задача: {task.title}",
+        html_body=email_html,
+    )
 
     return _task_to_dict(task)
 
